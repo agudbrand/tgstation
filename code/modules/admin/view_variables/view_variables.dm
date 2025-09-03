@@ -3,7 +3,51 @@
 
 ADMIN_VERB_ONLY_CONTEXT_MENU(debug_variables, R_NONE, "View Variables", datum/thing in world)
 	user.debug_variables(thing)
+
+ADMIN_VERB_ONLY_CONTEXT_MENU(debug_variables_tgui, R_NONE, "View Variables 2", datum/thing in world)
+	var/datum/view_variables_tgui/ui = new(user, thing)
+	ui.ui_interact(user.mob)
 // This is kept as a separate proc because admins are able to show VV to non-admins
+
+/datum/view_variables_tgui
+	var/client/user
+	var/datum/thing
+
+/datum/view_variables_tgui/New(_user, _thing)
+	user = CLIENT_FROM_VAR(_user)
+	thing = _thing
+
+/datum/view_variables_tgui/ui_interact(mob/user, datum/tgui/ui)
+	ui = SStgui.try_update_ui(user, src, ui)
+	if(!ui)
+		ui = new(user, src, "ViewVariables", "View Variables")
+		ui.open()
+
+/datum/view_variables_tgui/ui_state(mob/user)
+	return ADMIN_STATE(R_FUN)
+
+/datum/view_variables_tgui/ui_data(mob/user)
+	var/list/data = list()
+
+	var/islist = islist(thing) || (!isdatum(thing) && hascall(thing, "Cut")) // Some special lists don't count as lists, but can be detected by if they have list procs
+
+	var/list/names = list()
+	if(!islist)
+		for(var/varname in thing.vars)
+			names += varname
+
+	var/list/var_data = list()
+	if (!islist)
+		names = sort_list(names)
+		for(var/varname in names)
+			if(thing.can_vv_get(varname))
+				var_data.Add(list(list(
+					"name" = varname,
+					"value" = thing.vv_get_var(varname)
+					)))
+
+	data["vars"] = var_data
+	return data
 
 /client/proc/debug_variables(datum/thing)
 	var/static/cookieoffset = rand(1, 9999) //to force cookies to reset after the round.
